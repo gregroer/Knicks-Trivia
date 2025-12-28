@@ -3,7 +3,6 @@
 <head>
 <meta charset="UTF-8" />
 <title>Knicks Trivia – MetaMask Connect</title>
-
 <style>
   body { font-family: Arial,sans-serif; color:white; background:#0b2a5b; display:flex; justify-content:center; align-items:center; min-height:100vh; margin:0; }
   .container { width:420px; padding:30px; background:rgba(255,255,255,0.08); border-radius:20px; text-align:center; }
@@ -29,11 +28,11 @@
   <div id="status">Not connected</div>
 </div>
 
-<!-- 🔹 Load ethers.js UMD library -->
-<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+<!-- ✅ Load ethers.js from unpkg -->
+<script src="https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js"></script>
 
-<script type="text/javascript">
-window.onload = () => {
+<script>
+window.addEventListener('load', () => {
   let provider, signer, contract;
   let userAddress = null;
   const CONTRACT_ADDRESS = "0x72b97D6942FA4d5521dE4A1C563bb727B7E12670";
@@ -42,7 +41,6 @@ window.onload = () => {
   const statusEl = document.getElementById("status");
   const walletEl = document.getElementById("wallet");
 
-  // Connect MetaMask
   document.getElementById("connectBtn").addEventListener("click", async () => {
     try {
       if (typeof window.ethereum !== "undefined") {
@@ -64,7 +62,6 @@ window.onload = () => {
     }
   });
 
-  // Claim rewards
   document.getElementById("claimBtn").addEventListener("click", async () => {
     if (!contract || !signer) { alert("Connect MetaMask first"); return; }
 
@@ -83,7 +80,7 @@ window.onload = () => {
       statusEl.innerText = "❌ Transaction failed: " + (err.reason || err.message);
     }
   });
-};
+});
 </script>
 </body>
 </html>
