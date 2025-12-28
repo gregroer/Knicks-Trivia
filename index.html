@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>New York Knicks Trivia</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <!-- ethers v5 -->
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.min.js"></script>
+
+  <style>
+    body {
+      min-height: 100vh;
+      background: linear-gradient(135deg, #0b2a5b, #1d428a);
+      font-family: "Inter", Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: white;
+      margin: 0;
+    }
+    .container {
+      width: 850px;
+      background: rgba(255,255,255,0.08);
+      backdrop-filter: blur(14px);
+      border-radius: 24px;
+      padding: 35px;
+      box-shadow: 0 25px 45px rgba(0,0,0,0.45);
+    }
+    h1 {
+      font-family: "Oswald", sans-serif;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: #f58426;
+    }
+    .top {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 25px;
+    }
+    button {
+      background: #f58426;
+      color: #0b2a5b;
+      border: none;
+      padding: 12px;
+      border-radius: 14px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    select {
+      width: 100%;
+      padding: 12px;
+      border-radius: 12px;
+      border: none;
+      margin-bottom: 16px;
+    }
+    #result {
+      margin-top: 24px;
+      font-size: 18px;
+      color: #f58426;
+      text-align: center;
+    }
+  </style>
+</head>
+
+<body>
+<div class="container">
+
+  <div class="top">
+    <h1>Knicks Trivia</h1>
+    <div>
+      <button onclick="connectWallet()">Connect MetaMask</button>
+      <div id="wallet">Not connected</div>
+    </div>
+  </div>
+
+  <!-- QUESTIONS -->
+  <select id="q1">
+    <option value="">1. Knicks home arena?</option>
+    <option>Madison Square Garden</option>
+    <option>Barclays Center</option>
+  </select>
+
+  <select id="q2">
+    <option value="">2. Villanova trio nickname?</option>
+    <option>Nova Knicks</option>
+    <option>Big East Trio</option>
+  </select>
+
+  <select id="q3">
+    <option value="">3. Coach in last Finals?</option>
+    <option>Jeff Van Gundy</option>
+    <option>Pat Riley</option>
+  </select>
+
+  <select id="q4">
+    <option value="">4. Famous superfan?</option>
+    <option>Spike Lee</option>
+    <option>Ben Stiller</option>
+  </select>
+
+  <select id="q5">
+    <option value="">5. Acquired for RJ Barrett?</option>
+    <option>OG Anunoby</option>
+    <option>Pascal Siakam</option>
+  </select>
+
+  <button style="width:100%;margin-top:20px;" onclick="checkAnswers()">
+    Check Answers & Claim
+  </button>
+
+  <div id="result"></div>
+
+</div>
+
+<script>
+  let provider, signer, contract;
+
+  const CONTRACT_ADDRESS = "0x72b97D6942FA4d5521dE4A1C563bb727B7E12670";
+
+  const ABI = [
+    {
+      "inputs":[{"internalType":"uint256","name":"score","type":"uint256"}],
+      "name":"claimRewards",
+      "outputs":[],
+      "stateMutability":"nonpayable",
+      "type":"function"
+    }
+  ];
+
+  async function connectWallet() {
+    if (!window.ethereum) {
+      alert("Use MetaMask browser on mobile");
+      return;
+    }
+
+    await ethereum.request({ method: "eth_requestAccounts" });
+    provider = new ethers.providers.Web3Provider(window.ethereum);
+    signer = provider.getSigner();
+
+    const network = await provider.getNetwork();
+    if (network.chainId !== 11155111) {
+      await ethereum.request({
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId: "0xaa36a7" }]
+      });
+    }
+
+    contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
+    document.getElementById("wallet").innerText =
+      "Connected: " + (await signer.getAddress()).slice(0,6) + "...";
+  }
+
+  async function checkAnswers() {
+    if (!contract) {
+      alert("Connect wallet first");
+      return;
+    }
+
+    const answers = {
+      q1: "Madison Square Garden",
+      q2: "Nova Knicks",
+      q3: "Jeff Van Gundy",
+      q4: "Spike Lee",
+      q5: "OG Anunoby"
+    };
+
+    let score = 0;
+    for (let q in answers) {
+      if (document.getElementById(q).value === answers[q]) score++;
+    }
+
+    if (score === 0) {
+      document.getElementById("result").innerText = "No correct answers";
+      return;
+    }
+
+    document.getElementById("result").innerText = "Submitting transaction...";
+
+    try {
+      const tx = await contract.claimRewards(score);
+      await tx.wait();
+      document.getElementById("result").innerText =
+        `Success! You received ${(score * 0.01).toFixed(2)} ETH`;
+    } catch (err) {
+      document.getElementById("result").innerText =
+        err.reason || "Transaction failed";
+    }
+  }
+</script>
+
+</body>
+</html>
