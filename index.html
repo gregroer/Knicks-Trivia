@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Knicks Trivia – MetaMask Connect</title>
+
+<style>
+  body { font-family: Arial,sans-serif; color:white; background:#0b2a5b; display:flex; justify-content:center; align-items:center; min-height:100vh; margin:0; }
+  .container { width:420px; padding:30px; background:rgba(255,255,255,0.08); border-radius:20px; text-align:center; }
+  button { width:100%; padding:14px; margin:12px 0; border:none; border-radius:12px; font-weight:bold; cursor:pointer; background:#f58426; color:#0b2a5b; }
+  select { width:100%; padding:12px; margin-bottom:10px; border-radius:10px; }
+  #status { margin-top:15px; font-weight:bold; color:#f58426; white-space:pre-line; }
+</style>
+</head>
+
+<body>
+<div class="container">
+  <h2>🏀 Knicks Trivia</h2>
+  <button id="connectBtn">Connect MetaMask</button>
+  <div id="wallet">Not connected</div>
+
+  <select id="q1"><option value="">Knicks home arena?</option><option>Madison Square Garden</option><option>Barclays Center</option></select>
+  <select id="q2"><option value="">Villanova trio nickname?</option><option>Nova Knicks</option><option>Big East Trio</option></select>
+  <select id="q3"><option value="">Coach in last Finals?</option><option>Jeff Van Gundy</option><option>Pat Riley</option></select>
+  <select id="q4"><option value="">Famous Knicks superfan?</option><option>Spike Lee</option><option>Ben Stiller</option></select>
+  <select id="q5"><option value="">Player acquired for RJ Barrett?</option><option>OG Anunoby</option><option>Pascal Siakam</option></select>
+
+  <button id="claimBtn">Check Answers & Claim</button>
+  <div id="status">Not connected</div>
+</div>
+
+<!-- 🔹 Load ethers.js UMD library -->
+<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+
+<script type="text/javascript">
+window.onload = () => {
+  let provider, signer, contract;
+  let userAddress = null;
+  const CONTRACT_ADDRESS = "0x72b97D6942FA4d5521dE4A1C563bb727B7E12670";
+  const ABI = [{"inputs":[{"internalType":"uint256","name":"score","type":"uint256"}],"name":"claimRewards","outputs":[],"stateMutability":"nonpayable","type":"function"}];
+
+  const statusEl = document.getElementById("status");
+  const walletEl = document.getElementById("wallet");
+
+  // Connect MetaMask
+  document.getElementById("connectBtn").addEventListener("click", async () => {
+    try {
+      if (typeof window.ethereum !== "undefined") {
+        const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+        provider = new ethers.providers.Web3Provider(window.ethereum);
+        signer = provider.getSigner();
+        contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
+        userAddress = accounts[0];
+        walletEl.innerText = "Connected: " + userAddress.slice(0,6) + "..." + userAddress.slice(-4);
+        statusEl.innerText = "✅ MetaMask connected";
+      } else {
+        const dappUrl = encodeURIComponent(window.location.href);
+        statusEl.innerText = "🔗 Please open this in MetaMask app browser.";
+        window.location.href = "https://metamask.app.link/dapp/" + dappUrl;
+      }
+    } catch(err) {
+      console.error(err);
+      statusEl.innerText = "❌ Connection failed: " + (err.message || err);
+    }
+  });
+
+  // Claim rewards
+  document.getElementById("claimBtn").addEventListener("click", async () => {
+    if (!contract || !signer) { alert("Connect MetaMask first"); return; }
+
+    const answers = {q1:"Madison Square Garden", q2:"Nova Knicks", q3:"Jeff Van Gundy", q4:"Spike Lee", q5:"OG Anunoby"};
+    let score = 0;
+    for (let q in answers) if (document.getElementById(q).value === answers[q]) score++;
+    if (score===0) { statusEl.innerText="No correct answers"; return; }
+
+    statusEl.innerText="Submitting transaction...";
+    try {
+      const tx = await contract.claimRewards(score);
+      await tx.wait();
+      statusEl.innerText = `🎉 Success! Received ${(score*0.01).toFixed(2)} ETH`;
+    } catch(err) {
+      console.error(err);
+      statusEl.innerText = "❌ Transaction failed: " + (err.reason || err.message);
+    }
+  });
+};
+</script>
+</body>
+</html>
