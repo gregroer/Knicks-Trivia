@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>New York Knicks Trivia</title>
+
+  <!-- ethers v5 (stable for MetaMask) -->
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.min.js"></script>
+
+  <style>
+    body {
+      min-height: 100vh;
+      background: linear-gradient(135deg, #0b2a5b, #1d428a);
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: white;
+      margin: 0;
+    }
+    .container {
+      width: 800px;
+      background: rgba(255,255,255,0.08);
+      border-radius: 20px;
+      padding: 30px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+    }
+    button {
+      background: #f58426;
+      color: #0b2a5b;
+      border: none;
+      padding: 14px;
+      border-radius: 12px;
+      font-weight: bold;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 12px;
+    }
+    select {
+      width: 100%;
+      padding: 12px;
+      border-radius: 10px;
+      margin-bottom: 10px;
+    }
+    #status {
+      margin-top: 15px;
+      font-weight: bold;
+      color: #f58426;
+      text-align: center;
+      white-space: pre-line;
+    }
+  </style>
+</head>
+
+<body>
+<div class="container">
+  <h2>🏀 New York Knicks Trivia</h2>
+
+  <button id="connectBtn">Connect MetaMask</button>
+
+  <select id="q1">
+    <option value="">Knicks home arena?</option>
+    <option>Madison Square Garden</option>
+    <option>Barclays Center</option>
+  </select>
+
+  <select id="q2">
+    <option value="">Villanova trio nickname?</option>
+    <option>Nova Knicks</option>
+    <option>Big East Trio</option>
+  </select>
+
+  <select id="q3">
+    <option value="">Coach in last Finals?</option>
+    <option>Jeff Van Gundy</option>
+    <option>Pat Riley</option>
+  </select>
+
+  <select id="q4">
+    <option value="">Famous Knicks superfan?</option>
+    <option>Spike Lee</option>
+    <option>Ben Stiller</option>
+  </select>
+
+  <select id="q5">
+    <option value="">Player acquired for RJ Barrett?</option>
+    <option>OG Anunoby</option>
+    <option>Pascal Siakam</option>
+  </select>
+
+  <button id="claimBtn">Check Answers & Claim</button>
+
+  <div id="status">Not connected</div>
+</div>
+
+<script>
+  let provider, signer, contract;
+
+  const CONTRACT_ADDRESS = "0x72b97D6942FA4d5521dE4A1C563bb727B7E12670";
+
+  const ABI = [
+    {
+      "inputs":[{"internalType":"uint256","name":"score","type":"uint256"}],
+      "name":"claimRewards",
+      "outputs":[],
+      "stateMutability":"nonpayable",
+      "type":"function"
+    }
+  ];
+
+  const statusEl = document.getElementById("status");
+
+  // ✅ ROBUST CONNECT LOGIC
+  document.getElementById("connectBtn").addEventListener("click", async () => {
+    try {
+      if (!window.ethereum) {
+        // iOS Safari fallback
+        window.location.href =
+          "https://metamask.app.link/dapp/" +
+          window.location.host +
+          window.location.pathname;
+        return;
+      }
+
+      await window.ethereum.request({
+        method: "eth_requestAccounts"
+      });
+
+      provider = new ethers.providers.Web3Provider(window.ethereum);
+      signer = provider.getSigner();
+
+      const network = await provider.getNetwork();
+      if (network.chainId !== 11155111) {
+        await window.ethereum.request({
+          method: "wallet_switchEthereumChain",
+          params: [{ chainId: "0xaa36a7" }] // Sepolia
+        });
+      }
+
+      contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
+
+      const address = await signer.getAddress();
+      statusEl.innerText =
+        "Connected:\n" +
+        address.slice(0, 6) +
+        "..." +
+        address.slice(-4);
+
+    } catch (err) {
+      console.error(err);
+      statusEl.innerText = err.message || "Connection failed";
+    }
+  });
+
+  // ✅ CLAIM LOGIC
+  document.getElementById("claimBtn").addEventListener("click", async () => {
+    if (!contract) {
+      alert("Connect MetaMask first");
+      return;
+    }
+
+    const answers = {
+      q1: "Madison Square Garden",
+      q2: "Nova Knicks",
+      q3: "Jeff Van Gundy",
+      q4: "Spike Lee",
+      q5: "OG Anunoby"
+    };
+
+    let score = 0;
+    for (let q in answers) {
+      if (document.getElementById(q).value === answers[q]) score++;
+    }
+
+    if (score === 0) {
+      statusEl.innerText = "No correct answers";
+      return;
+    }
+
+    statusEl.innerText = "Submitting transaction...";
+
+    try {
+      const tx = await contract.claimRewards(score);
+      await tx.wait();
+      statusEl.innerText =
+        `Success! Received ${(score * 0.01).toFixed(2)} ETH`;
+    } catch (err) {
+      console.error(err);
+      statusEl.innerText = err.reason || "Transaction failed";
+    }
+  });
+</script>
+</body>
+</html>
