@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <title>New York Knicks Trivia</title>
 
-  <!-- ethers v5 (stable for MetaMask) -->
+  <!-- ethers v5 -->
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.min.js"></script>
 
   <style>
@@ -18,46 +18,98 @@
       color: white;
       margin: 0;
     }
+
     .container {
-      width: 800px;
-      background: rgba(255,255,255,0.08);
-      border-radius: 20px;
-      padding: 30px;
-      box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+      width: 850px;
+      background: rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(14px);
+      border-radius: 24px;
+      padding: 35px;
+      box-shadow: 0 25px 45px rgba(0,0,0,0.45);
     }
-    button {
+
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 30px;
+    }
+
+    .title h1 {
+      margin: 0;
+      font-family: "Oswald", sans-serif;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      font-size: 32px;
+      color: #f58426;
+    }
+
+    .connect-btn {
       background: #f58426;
       color: #0b2a5b;
       border: none;
-      padding: 14px;
-      border-radius: 12px;
+      padding: 10px 16px;
+      border-radius: 14px;
+      font-size: 14px;
       font-weight: bold;
       cursor: pointer;
-      width: 100%;
-      margin-top: 12px;
     }
+
     select {
       width: 100%;
       padding: 12px;
-      border-radius: 10px;
+      border-radius: 12px;
+      border: none;
+      background: #ffffff;
+      color: #0b2a5b;
+      font-size: 15px;
       margin-bottom: 10px;
     }
+
+    .check-btn {
+      width: 100%;
+      background: #f58426;
+      color: #0b2a5b;
+      border: none;
+      padding: 16px;
+      border-radius: 16px;
+      font-size: 18px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 20px;
+    }
+
     #status {
-      margin-top: 15px;
+      margin-top: 18px;
       font-weight: bold;
       color: #f58426;
       text-align: center;
       white-space: pre-line;
+    }
+
+    .footer {
+      margin-top: 12px;
+      font-size: 12px;
+      opacity: 0.7;
+      text-align: center;
     }
   </style>
 </head>
 
 <body>
 <div class="container">
-  <h2>🏀 New York Knicks Trivia</h2>
+  <div class="top-bar">
+    <div class="title">
+      <h1>New York Knicks Trivia</h1>
+    </div>
 
-  <button id="connectBtn">Connect MetaMask</button>
+    <div>
+      <button class="connect-btn" id="connectBtn">Connect MetaMask</button>
+      <div class="wallet" id="wallet">Not connected</div>
+    </div>
+  </div>
 
+  <!-- Questions -->
   <select id="q1">
     <option value="">Knicks home arena?</option>
     <option>Madison Square Garden</option>
@@ -88,14 +140,17 @@
     <option>Pascal Siakam</option>
   </select>
 
-  <button id="claimBtn">Check Answers & Claim</button>
+  <button class="check-btn" id="claimBtn">Check Answers & Claim</button>
 
   <div id="status">Not connected</div>
+  <div class="footer">Rewards: 0.01 Sepolia ETH per correct answer</div>
 </div>
 
 <script>
   let provider, signer, contract;
+  let userAddress = null;
 
+  // 🔹 Replace this with your deployed contract address
   const CONTRACT_ADDRESS = "0x72b97D6942FA4d5521dE4A1C563bb727B7E12670";
 
   const ABI = [
@@ -109,52 +164,36 @@
   ];
 
   const statusEl = document.getElementById("status");
+  const walletEl = document.getElementById("wallet");
 
-  // ✅ ROBUST CONNECT LOGIC
+  // 🔹 Connect MetaMask
   document.getElementById("connectBtn").addEventListener("click", async () => {
     try {
-      if (!window.ethereum) {
-        // iOS Safari fallback
-        window.location.href =
-          "https://metamask.app.link/dapp/" +
-          window.location.host +
-          window.location.pathname;
-        return;
+      if (typeof window.ethereum !== "undefined") {
+        // MetaMask is available
+        const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+        provider = new ethers.providers.Web3Provider(window.ethereum);
+        signer = provider.getSigner();
+        contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
+        userAddress = accounts[0];
+
+        walletEl.innerText = "Connected: " + userAddress.slice(0,6) + "..." + userAddress.slice(-4);
+        statusEl.innerText = "✅ MetaMask connected";
+      } else {
+        // MetaMask not injected, redirect to MetaMask app browser
+        const dappUrl = encodeURIComponent(window.location.href);
+        statusEl.innerText = "🔗 Please open this in MetaMask app browser.";
+        window.location.href = "https://metamask.app.link/dapp/" + dappUrl;
       }
-
-      await window.ethereum.request({
-        method: "eth_requestAccounts"
-      });
-
-      provider = new ethers.providers.Web3Provider(window.ethereum);
-      signer = provider.getSigner();
-
-      const network = await provider.getNetwork();
-      if (network.chainId !== 11155111) {
-        await window.ethereum.request({
-          method: "wallet_switchEthereumChain",
-          params: [{ chainId: "0xaa36a7" }] // Sepolia
-        });
-      }
-
-      contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
-
-      const address = await signer.getAddress();
-      statusEl.innerText =
-        "Connected:\n" +
-        address.slice(0, 6) +
-        "..." +
-        address.slice(-4);
-
-    } catch (err) {
+    } catch(err) {
       console.error(err);
-      statusEl.innerText = err.message || "Connection failed";
+      statusEl.innerText = "❌ Connection failed: " + (err.message || err);
     }
   });
 
-  // ✅ CLAIM LOGIC
+  // 🔹 Claim rewards based on answers
   document.getElementById("claimBtn").addEventListener("click", async () => {
-    if (!contract) {
+    if (!contract || !signer) {
       alert("Connect MetaMask first");
       return;
     }
@@ -182,11 +221,10 @@
     try {
       const tx = await contract.claimRewards(score);
       await tx.wait();
-      statusEl.innerText =
-        `Success! Received ${(score * 0.01).toFixed(2)} ETH`;
-    } catch (err) {
+      statusEl.innerText = `🎉 Success! You received ${(score*0.01).toFixed(2)} ETH`;
+    } catch(err) {
       console.error(err);
-      statusEl.innerText = err.reason || "Transaction failed";
+      statusEl.innerText = "❌ Transaction failed: " + (err.reason || err.message);
     }
   });
 </script>
